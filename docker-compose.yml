@@ -1,24 +1,85 @@
 services:
-  app:
-    build: ./notifications-backend
+  frontend:
+    build:
+      context: ./notifications-frontend
+      dockerfile: Dockerfile
+    container_name: notification-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - notification-net
+
+  backend:
+    build:
+      context: ./notifications-backend
+      dockerfile: Dockerfile
+    container_name: notification-backend
     ports:
       - "8080:8080"
     environment:
-      DATASOURCES_DEFAULT_URL: jdbc:postgresql://db:5432/notifications_db
-    depends_on:
-      - db
+      DATASOURCES_DEFAULT_URL: jdbc:postgresql://postgres:5432/notifications_db
+      DATASOURCES_DEFAULT_USERNAME: user
+      DATASOURCES_DEFAULT_PASSWORD: password
 
-  db:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_OVERRIDE: http://localstack:4566
+
+      AWS_SQS_ENABLED: "true"
+      NOTIFICATIONS_QUEUE_NAME: notifications_queue
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    networks:
+      - notification-net
+
+  postgres:
     image: postgres:15-alpine
-    container_name: notification_postgres
+    container_name: notification-db
     environment:
-      POSTGRES_DB: notifications_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
+      POSTGRES_DB: notifications_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d notifications_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notification-net
+
+  localstack:
+    image: localstack/localstack
+    container_name: notification-localstack
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:4566/_localstack/health" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - notification-net
+
+networks:
+  notification-net:
+    driver: bridge
 
 volumes:
   postgres_data:
