@@ -96,3 +96,10 @@ tasks.jacocoTestReport {
         csv.required = false
     }
 }
+
+// Configuração do Detekt para análise de segurança e qualidade
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    jvmTarget = "17" // Ajuste necessário pois o Detekt 1.23.3 ainda não suporta nativamente o target 21
+}
