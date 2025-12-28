@@ -1,8 +1,9 @@
 name: CI/CD Pipeline
 
+
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feat/seguranca-e-devsecops" ] # Adicionamos sua branch aqui
   pull_request:
     branches: [ "main" ]
 
